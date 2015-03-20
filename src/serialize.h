@@ -1024,7 +1024,7 @@ public:
     void ReadVersion()           { *this >> nVersion; }
     void WriteVersion()          { *this << nVersion; }
 
-    CDataStream& read(char* pch, size_t nSize)
+    CDataStream& read(char* pch, int nSize)
     {
         // Read from the beginning of the buffer
         unsigned int nReadPosNext = nReadPos + nSize;
@@ -1032,7 +1032,10 @@ public:
         {
             if (nReadPosNext > vch.size())
             {
-                throw std::ios_base::failure("CDataStream::read() : end of data");
+                // Output the size we expected along with the error
+                char sNSize[20];
+                sprintf(sNSize, "%d", nSize);
+                throw std::ios_base::failure("CDataStream::read(): end of data, size: " + std::string(sNSize) );
             }
             memcpy(pch, &vch[nReadPos], nSize);
             nReadPos = 0;
@@ -1052,7 +1055,7 @@ public:
         if (nReadPosNext >= vch.size())
         {
             if (nReadPosNext > vch.size())
-                throw std::ios_base::failure("CDataStream::ignore() : end of data");
+                throw std::ios_base::failure("CDataStream::ignore(): end of data");
             nReadPos = 0;
             vch.clear();
             return (*this);
