@@ -148,21 +148,21 @@ QVariant OptionsModel::data(const QModelIndex & index, int role) const
         case ProxyIP: {
             proxyType proxy;
             if (GetProxy(NET_IPV4, proxy))
-                return QVariant(QString::fromStdString(proxy.first.ToStringIP()));
+                return QVariant(QString::fromStdString(proxy.ToStringIP()));
             else
                 return QVariant(QString::fromStdString("127.0.0.1"));
         }
         case ProxyPort: {
             proxyType proxy;
             if (GetProxy(NET_IPV4, proxy))
-                return QVariant(proxy.first.GetPort());
+                return QVariant(proxy.GetPort());
             else
                 return QVariant(9050);
         }
         case ProxySocksVersion:
             return settings.value("nSocksVersion", 5);
         case Fee:
-            return QVariant(nTransactionFee);
+            return QVariant((qint64)nTransactionFee);
         case DisplayUnit:
             return QVariant(nDisplayUnit);
         case DisplayAddresses:
@@ -210,38 +210,28 @@ bool OptionsModel::setData(const QModelIndex & index, const QVariant & value, in
             break;
         case ProxyIP: {
             proxyType proxy;
-            proxy.first = CService("127.0.0.1", 9050);
+            proxy = CService("127.0.0.1", 9050);
             GetProxy(NET_IPV4, proxy);
 
             CNetAddr addr(value.toString().toStdString());
-            proxy.first.SetIP(addr);
-            settings.setValue("addrProxy", proxy.first.ToStringIPPort().c_str());
+            proxy.SetIP(addr);
+            settings.setValue("addrProxy", proxy.ToStringIPPort().c_str());
             successful = ApplyProxySettings();
         }
         break;
         case ProxyPort: {
             proxyType proxy;
-            proxy.first = CService("127.0.0.1", 9050);
+            proxy = CService("127.0.0.1", 9050);
             GetProxy(NET_IPV4, proxy);
 
-            proxy.first.SetPort(value.toInt());
-            settings.setValue("addrProxy", proxy.first.ToStringIPPort().c_str());
-            successful = ApplyProxySettings();
-        }
-        break;
-        case ProxySocksVersion: {
-            proxyType proxy;
-            proxy.second = 5;
-            GetProxy(NET_IPV4, proxy);
-
-            proxy.second = value.toInt();
-            settings.setValue("nSocksVersion", proxy.second);
+            proxy.SetPort(value.toInt());
+            settings.setValue("addrProxy", proxy.ToStringIPPort().c_str());
             successful = ApplyProxySettings();
         }
         break;
         case Fee:
             nTransactionFee = value.toLongLong();
-            settings.setValue("nTransactionFee", nTransactionFee);
+            settings.setValue("nTransactionFee", (qint64)nTransactionFee);
             emit transactionFeeChanged(nTransactionFee);
             break;
         case DisplayUnit:

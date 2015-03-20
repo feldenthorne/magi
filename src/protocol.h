@@ -12,6 +12,7 @@
 
 #include "serialize.h"
 #include "netbase.h"
+#include <stdio.h>
 #include <string>
 #include "uint256.h"
 
@@ -39,13 +40,15 @@ class CMessageHeader
         std::string GetCommand() const;
         bool IsValid() const;
 
-        IMPLEMENT_SERIALIZE
-            (
+        ADD_SERIALIZE_METHODS;
+
+        template <typename Stream, typename Operation>
+        inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
              READWRITE(FLATDATA(pchMessageStart));
              READWRITE(FLATDATA(pchCommand));
              READWRITE(nMessageSize);
              READWRITE(nChecksum);
-            )
+        }
 
     // TODO: make private (improves encapsulation)
     public:
@@ -75,36 +78,37 @@ class CAddress : public CService
 {
     public:
         CAddress();
-        explicit CAddress(CService ipIn, uint64 nServicesIn=NODE_NETWORK);
+        explicit CAddress(CService ipIn, uint64_t nServicesIn=NODE_NETWORK);
 
         void Init();
 
-        IMPLEMENT_SERIALIZE
-            (
-             CAddress* pthis = const_cast<CAddress*>(this);
-             CService* pip = (CService*)pthis;
-             if (fRead)
-                 pthis->Init();
-             if (nType & SER_DISK)
-                 READWRITE(nVersion);
-             if ((nType & SER_DISK) ||
-                 (nVersion >= CADDR_TIME_VERSION && !(nType & SER_GETHASH)))
-                 READWRITE(nTime);
-             READWRITE(nServices);
-             READWRITE(*pip);
-            )
+        ADD_SERIALIZE_METHODS;
+
+        template <typename Stream, typename Operation>
+        inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion)
+        {
+            if (ser_action.ForRead())
+            Init();
+            if (nType & SER_DISK)
+                READWRITE(nVersion);
+            if ((nType & SER_DISK) ||
+                (nVersion >= CADDR_TIME_VERSION && !(nType & SER_GETHASH)))
+                READWRITE(nTime);
+            READWRITE(nServices);
+            READWRITE(*(CService*)this);
+        }
 
         void print() const;
 
     // TODO: make private (improves encapsulation)
     public:
-        uint64 nServices;
+        uint64_t nServices;
 
         // disk and network only
         unsigned int nTime;
 
         // memory only
-        int64 nLastTry;
+        int64_t nLastTry;
 };
 
 /** inv message data */
@@ -115,11 +119,13 @@ class CInv
         CInv(int typeIn, const uint256& hashIn);
         CInv(const std::string& strType, const uint256& hashIn);
 
-        IMPLEMENT_SERIALIZE
-        (
+        ADD_SERIALIZE_METHODS;
+
+        template <typename Stream, typename Operation>
+        inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
             READWRITE(type);
             READWRITE(hash);
-        )
+        }
 
         friend bool operator<(const CInv& a, const CInv& b);
 

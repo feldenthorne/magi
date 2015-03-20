@@ -21,7 +21,7 @@ using namespace std;
 static proxyType proxyInfo[NET_MAX];
 static proxyType nameproxyInfo;
 static CCriticalSection cs_proxyInfos;
-int nConnectTimeout = 5000;
+int nConnectTimeout = DEFAULT_CONNECT_TIMEOUT;
 bool fNameLookup = false;
 
 static const unsigned char pchIPv4[12] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff };
@@ -31,8 +31,18 @@ enum Network ParseNetwork(std::string net) {
     if (net == "ipv4") return NET_IPV4;
     if (net == "ipv6") return NET_IPV6;
     if (net == "tor")  return NET_TOR;
-    if (net == "i2p")  return NET_I2P;
+    if (net == "tor" || net == "onion")  return NET_I2P;
     return NET_UNROUTABLE;
+}
+
+std::string GetNetworkName(enum Network net) {
+    switch(net)
+    {
+    case NET_IPV4: return "ipv4";
+    case NET_IPV6: return "ipv6";
+    case NET_TOR: return "onion";
+    default: return "";
+    }
 }
 
 void SplitHostPort(std::string in, int &portOut, std::string &hostOut) {
@@ -170,50 +180,6 @@ bool Lookup(const char *pszName, CService& addr, int portDefault, bool fAllowLoo
 bool LookupNumeric(const char *pszName, CService& addr, int portDefault)
 {
     return Lookup(pszName, addr, portDefault, false);
-}
-
-bool static Socks4(const CService &addrDest, SOCKET& hSocket)
-{
-    printf("SOCKS4 connecting %s\n", addrDest.ToString().c_str());
-    if (!addrDest.IsIPv4())
-    {
-        closesocket(hSocket);
-        return error("Proxy destination is not IPv4");
-    }
-    char pszSocks4IP[] = "\4\1\0\0\0\0\0\0user";
-    struct sockaddr_in addr;
-    socklen_t len = sizeof(addr);
-    if (!addrDest.GetSockAddr((struct sockaddr*)&addr, &len) || addr.sin_family != AF_INET)
-    {
-        closesocket(hSocket);
-        return error("Cannot get proxy destination address");
-    }
-    memcpy(pszSocks4IP + 2, &addr.sin_port, 2);
-    memcpy(pszSocks4IP + 4, &addr.sin_addr, 4);
-    char* pszSocks4 = pszSocks4IP;
-    int nSize = sizeof(pszSocks4IP);
-
-    int ret = send(hSocket, pszSocks4, nSize, MSG_NOSIGNAL);
-    if (ret != nSize)
-    {
-        closesocket(hSocket);
-        return error("Error sending to proxy");
-    }
-    char pchRet[8];
-    if (recv(hSocket, pchRet, 8, 0) != 8)
-    {
-        closesocket(hSocket);
-        return error("Error reading proxy response");
-    }
-    if (pchRet[1] != 0x5a)
-    {
-        closesocket(hSocket);
-        if (pchRet[1] != 0x5b)
-            printf("ERROR: Proxy returned error %d\n", pchRet[1]);
-        return false;
-    }
-    printf("SOCKS4 connected %s\n", addrDest.ToString().c_str());
-    return true;
 }
 
 bool static Socks5(string strDest, int port, SOCKET& hSocket)
@@ -435,14 +401,14 @@ bool SetProxy(enum Network net, CService addrProxy, int nSocksVersion) {
     if (nSocksVersion != 0 && !addrProxy.IsValid())
         return false;
     LOCK(cs_proxyInfos);
-    proxyInfo[net] = std::make_pair(addrProxy, nSocksVersion);
+    proxyInfo[net] = addrProxy;
     return true;
 }
 
 bool GetProxy(enum Network net, proxyType &proxyInfoOut) {
     assert(net >= 0 && net < NET_MAX);
     LOCK(cs_proxyInfos);
-    if (!proxyInfo[net].second)
+    if (!proxyInfo[net].IsValid())
         return false;
     proxyInfoOut = proxyInfo[net];
     return true;
@@ -454,13 +420,13 @@ bool SetNameProxy(CService addrProxy, int nSocksVersion) {
     if (nSocksVersion != 0 && !addrProxy.IsValid())
         return false;
     LOCK(cs_proxyInfos);
-    nameproxyInfo = std::make_pair(addrProxy, nSocksVersion);
+    nameproxyInfo = addrProxy;
     return true;
 }
 
 bool GetNameProxy(proxyType &nameproxyInfoOut) {
     LOCK(cs_proxyInfos);
-    if (!nameproxyInfo.second)
+    if (!nameproxyInfo.IsValid())
         return false;
     nameproxyInfoOut = nameproxyInfo;
     return true;
@@ -468,13 +434,13 @@ bool GetNameProxy(proxyType &nameproxyInfoOut) {
 
 bool HaveNameProxy() {
     LOCK(cs_proxyInfos);
-    return nameproxyInfo.second != 0;
+    return nameproxyInfo.IsValid();
 }
 
 bool IsProxy(const CNetAddr &addr) {
     LOCK(cs_proxyInfos);
     for (int i = 0; i < NET_MAX; i++) {
-        if (proxyInfo[i].second && (addr == (CNetAddr)proxyInfo[i].first))
+        if (addr == (CNetAddr)proxyInfo[i])
             return true;
     }
     return false;
@@ -491,22 +457,12 @@ bool ConnectSocket(const CService &addrDest, SOCKET& hSocketRet, int nTimeout)
     SOCKET hSocket = INVALID_SOCKET;
 
     // first connect to proxy server
-    if (!ConnectSocketDirectly(proxy.first, hSocket, nTimeout))
+    if (!ConnectSocketDirectly(proxy, hSocket, nTimeout))
         return false;
 
     // do socks negotiation
-    switch (proxy.second) {
-    case 4:
-        if (!Socks4(addrDest, hSocket))
-            return false;
-        break;
-    case 5:
-        if (!Socks5(addrDest.ToStringIP(), addrDest.GetPort(), hSocket))
-            return false;
-        break;
-    default:
+    if (!Socks5(addrDest.ToStringIP(), addrDest.GetPort(), hSocket))
         return false;
-    }
 
     hSocketRet = hSocket;
     return true;
@@ -523,25 +479,20 @@ bool ConnectSocketByName(CService &addr, SOCKET& hSocketRet, const char *pszDest
     proxyType nameproxy;
     GetNameProxy(nameproxy);
 
-    CService addrResolved(CNetAddr(strDest, fNameLookup && !nameproxy.second), port);
+    CService addrResolved(CNetAddr(strDest, fNameLookup && !HaveNameProxy()), port);
     if (addrResolved.IsValid()) {
         addr = addrResolved;
         return ConnectSocket(addr, hSocketRet, nTimeout);
     }
-    addr = CService("0.0.0.0:0");
-    if (!nameproxy.second)
-        return false;
-    if (!ConnectSocketDirectly(nameproxy.first, hSocket, nTimeout))
-        return false;
 
-    switch(nameproxy.second) {
-        default:
-        case 4: return false;
-        case 5:
-            if (!Socks5(strDest, port, hSocket))
-                return false;
-            break;
-    }
+    addr = CService("0.0.0.0:0");
+
+    if (!HaveNameProxy())
+        return false;
+    if (!ConnectSocketDirectly(nameproxy, hSocket, nTimeout))
+        return false;
+    if (!Socks5(strDest, (unsigned short)port, hSocket))
+        return false;
 
     hSocketRet = hSocket;
     return true;
@@ -915,10 +866,10 @@ std::vector<unsigned char> CNetAddr::GetGroup() const
     return vchRet;
 }
 
-uint64 CNetAddr::GetHash() const
+uint64_t CNetAddr::GetHash() const
 {
     uint256 hash = Hash(&ip[0], &ip[16]);
-    uint64 nRet;
+    uint64_t nRet;
     memcpy(&nRet, &hash, sizeof(nRet));
     return nRet;
 }

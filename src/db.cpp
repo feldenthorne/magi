@@ -431,7 +431,7 @@ bool CDB::Rewrite(const string& strFile, const char* pszSkip)
 
 void CDBEnv::Flush(bool fShutdown)
 {
-    int64 nStart = GetTimeMillis();
+    int64_t nStart = GetTimeMillis();
     // Flush log data to the actual data file
     //  on all files that are not in use
     printf("Flush(%s)%s\n", fShutdown ? "true" : "false", fDbEnvInit ? "" : " db not started");
@@ -462,7 +462,7 @@ void CDBEnv::Flush(bool fShutdown)
             else
                 mi++;
         }
-        printf("DBFlush(%s)%s ended %15"PRI64d"ms\n", fShutdown ? "true" : "false", fDbEnvInit ? "" : " db not started", GetTimeMillis() - nStart);
+        printf("DBFlush(%s)%s ended %15"PRI64d"ms\n", fShutdown ? "true" : "false", fDbEnvInit ? "" : " db not started", (long long int)(GetTimeMillis() - nStart));
         if (fShutdown)
         {
             char** listp;
@@ -636,7 +636,7 @@ bool CTxDB::LoadBlockIndex()
         // ppcoin: calculate stake modifier checksum
         pindex->nStakeModifierChecksum = GetStakeModifierChecksum(pindex);
         if (!CheckStakeModifierCheckpoints(pindex->nHeight, pindex->nStakeModifierChecksum))
-            return error("CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height=%d, modifier=0x%016"PRI64x, pindex->nHeight, pindex->nStakeModifier);
+            return error("CTxDB::LoadBlockIndex() : Failed stake modifier checkpoint height=%d, modifier=0x%016"PRI64x, pindex->nHeight,(unsigned long long int)pindex->nStakeModifier);
     }
 
     // Load hashBestChain pointer to end of best chain
@@ -654,7 +654,7 @@ bool CTxDB::LoadBlockIndex()
 //    if(pindexBest) {if(pindexBest->pprev) nLastPrevMoneySupply = (pindexBest->pprev)->nMoneySupply;}
     printf("LoadBlockIndex(): hashBestChain=%s  height=%d  trust=%s  MoneySupply=%"PRI64d"  date=%s\n",
       hashBestChain.ToString().substr(0,20).c_str(), nBestHeight, bnBestChainTrust.ToString().c_str(), 
-      pindexBest->nMoneySupply, DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
+      (long long int)(pindexBest->nMoneySupply), DateTimeStrFormat("%x %H:%M:%S", pindexBest->GetBlockTime()).c_str());
 
     // ppcoin: load hashSyncCheckpoint
     if (!ReadSyncCheckpoint(Checkpoints::hashSyncCheckpoint))
@@ -904,7 +904,7 @@ bool CAddrDB::Write(const CAddrMan& addr)
     boost::filesystem::path pathTmp = GetDataDir() / tmpfn;
     FILE *file = fopen(pathTmp.string().c_str(), "wb");
     CAutoFile fileout = CAutoFile(file, SER_DISK, CLIENT_VERSION);
-    if (!fileout)
+    if (fileout.IsNull())
         return error("CAddrman::Write() : open failed");
 
     // Write and commit header, data
@@ -914,7 +914,7 @@ bool CAddrDB::Write(const CAddrMan& addr)
     catch (std::exception &e) {
         return error("CAddrman::Write() : I/O error");
     }
-    FileCommit(fileout);
+    FileCommit(fileout.Get());
     fileout.fclose();
 
     // replace existing peers.dat, if any, with new peers.dat.XXXX
@@ -929,11 +929,12 @@ bool CAddrDB::Read(CAddrMan& addr)
     // open input file, and associate with CAutoFile
     FILE *file = fopen(pathAddr.string().c_str(), "rb");
     CAutoFile filein = CAutoFile(file, SER_DISK, CLIENT_VERSION);
-    if (!filein)
+    if (filein.IsNull())
         return error("CAddrman::Read() : open failed");
 
     // use file size to size memory buffer
-    int fileSize = GetFilesize(filein);
+    int fileSize =boost::filesystem::file_size(pathAddr);
+    //int fileSize = GetFilesize(filein);
     int dataSize = fileSize - sizeof(uint256);
     vector<unsigned char> vchData;
     vchData.resize(dataSize);

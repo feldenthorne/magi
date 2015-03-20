@@ -61,13 +61,15 @@ public:
     CBloomFilter(unsigned int nElements, double nFPRate, unsigned int nTweak, unsigned char nFlagsIn);
     CBloomFilter() : isFull(true) {}
 
-    IMPLEMENT_SERIALIZE
-    (
+    ADD_SERIALIZE_METHODS;
+
+    template <typename Stream, typename Operation>
+    inline void SerializationOp(Stream& s, Operation ser_action, int nType, int nVersion) {
         READWRITE(vData);
         READWRITE(nHashFuncs);
         READWRITE(nTweak);
         READWRITE(nFlags);
-    )
+    }
 
     void insert(const std::vector<unsigned char>& vKey);
     void insert(const COutPoint& outpoint);

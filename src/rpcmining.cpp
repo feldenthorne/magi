@@ -61,20 +61,20 @@ Value gethashespersec(const Array& params, bool fHelp)
     return (boost::int64_t)dHashesPerSec;
 }
 
-int64 GetProofOfWorkRewardV2(const CBlockIndex* pindexPrev, int64 nFees, bool fLastBlock);
+int64_t GetProofOfWorkRewardV2(const CBlockIndex* pindexPrev, int64_t nFees, bool fLastBlock);
 double GetDifficultyFromBitsV2(const CBlockIndex* pindex0);
-double GetAnnualInterest(int64 nNetWorkWeit, double rMaxAPR);
-double GetAnnualInterestV2(int64 nNetWorkWeit, double rMaxAPR);
+double GetAnnualInterest(int64_t nNetWorkWeit, double rMaxAPR);
+double GetAnnualInterestV2(int64_t nNetWorkWeit, double rMaxAPR);
 Value getmininginfo(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 0)
         throw runtime_error(
             "getmininginfo\n"
             "Returns an object containing mining-related information.");
-    uint64 nWeight = 0, nMinWeight = 0, nMaxWeight = 0;
+    uint64_t nWeight = 0, nMinWeight = 0, nMaxWeight = 0;
     pwalletMain->GetStakeWeight(nMinWeight, nMaxWeight, nWeight);
     int64_t nNetWorkWeit = GetPoSKernelPS();
-    uint64 nEstimateTime = 90 * GetPoSKernelPS() / nWeight;
+    uint64_t nEstimateTime = 90 * GetPoSKernelPS() / nWeight;
     double bvalue = (IsPoWIIRewardProtocolV2(pindexBest->nTime)) ? 
 		  ((double)GetProofOfWorkRewardV2(pindexBest, 0, true))/((double)COIN) : 
 		  (double)((uint64_t)(GetProofOfWorkReward(pindexBest->nBits, pindexBest->nHeight, 0)/COIN));
@@ -355,7 +355,7 @@ Value getworkex(const Array& params, bool fHelp)
         // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
-        static int64 nStart;
+        static int64_t nStart;
         static CBlock* pblock;
         if (pindexPrev != pindexBest ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60))
@@ -489,7 +489,7 @@ Value getwork(const Array& params, bool fHelp)
         // Update block
         static unsigned int nTransactionsUpdatedLast;
         static CBlockIndex* pindexPrev;
-        static int64 nStart;
+        static int64_t nStart;
         static CBlock* pblock;
         if (pindexPrev != pindexBest ||
             (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 60))
@@ -674,7 +674,7 @@ Value getblocktemplate(const Array& params, bool fHelp)
     // Update block
     static unsigned int nTransactionsUpdatedLast;
     static CBlockIndex* pindexPrev;
-    static int64 nStart;
+    static int64_t nStart;
     static CBlock* pblock;
     if (pindexPrev != pindexBest ||
         (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 5))

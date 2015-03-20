@@ -63,7 +63,7 @@
 #include <iostream>
 
 extern CWallet *pwalletMain;
-extern int64 nLastCoinStakeSearchInterval;
+extern int64_t nLastCoinStakeSearchInterval;
 extern unsigned int nStakeTargetSpacing;
 
 BitcoinGUI::BitcoinGUI(QWidget *parent):
@@ -985,7 +985,7 @@ void BitcoinGUI::updateMintingIcon()
     }
     else if (nLastCoinStakeSearchInterval)
     {
-        uint64 nEstimateTime = nStakeTargetSpacing * nNetworkWeight / nWeight;
+        uint64_t nEstimateTime = nStakeTargetSpacing * nNetworkWeight / nWeight;
 
         QString text;
         if (nEstimateTime < 60)

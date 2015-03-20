@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QSystemTrayIcon>
 
-#include "util.h" // for uint64
+#include "util.h" // for uint64_t
 
 class TransactionTableModel;
 class ClientModel;
@@ -102,9 +102,9 @@ private:
 
     QMovie *syncIconMovie;
 
-    uint64 nMinWeight, nMaxWeight;
-    uint64 nWeight;
-    uint64 nNetworkWeight;
+    uint64_t nMinWeight, nMaxWeight;
+    uint64_t nWeight;
+    uint64_t nNetworkWeight;
 
     /** Create the main UI actions. */
     void createActions();

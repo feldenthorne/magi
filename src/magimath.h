@@ -43,6 +43,8 @@ inline double exp_n2(double x1, double x2)
         return ( exp(-xt) );
     else if (xt > p6 - 1.e-200)
         return 0.;
+    else
+        return 0.;
 }
 
 #endif

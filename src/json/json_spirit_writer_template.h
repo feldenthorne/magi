@@ -28,7 +28,7 @@ namespace json_spirit
     template< class String_type >
     String_type non_printable_to_string( unsigned int c )
     {
-        typedef typename String_type::value_type Char_type;
+        //typedef typename String_type::value_type Char_type;
 
         String_type result( 6, '\\' );
 
@@ -153,9 +153,9 @@ namespace json_spirit
 
         void output_int( const Value_type& value )
         {
-            if( value.is_uint64() )
+            if( value.is_uint64_t() )
             {
-                os_ << value.get_uint64();
+                os_ << value.get_uint64_t();
             }
             else
             {

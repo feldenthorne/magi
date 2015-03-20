@@ -5,6 +5,8 @@
 #ifndef _BITCOIN_COMPAT_H
 #define _BITCOIN_COMPAT_H 1
 
+#include <unistd.h>
+
 #ifdef WIN32
 #define _WIN32_WINNT 0x0501
 #define WIN32_LEAN_AND_MEAN 1
